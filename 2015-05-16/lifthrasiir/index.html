@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Table-driven programming in Rust</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+<style type="text/css">
+@import url(https://fonts.googleapis.com/css?family=Yanone+Kaffeesatz);
+@import url(https://fonts.googleapis.com/css?family=Droid+Serif:400,700,400italic);
+@import url(https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic);
+@import url(https://fonts.googleapis.com/earlyaccess/nanumgothic.css);
+@import url(https://fonts.googleapis.com/earlyaccess/nanumpenscript.css);
+
+body { font-family: 'Droid Serif', 'Nanum Gothic', sans-serif; }
+h1, h2, h3 { font-family: 'Yanone Kaffeesatz'; font-weight: normal; }
+.ko-title { font-family: 'Nanum Pen Script', sans-serif; }
+.remark-code, .remark-inline-code { font-family: 'Ubuntu Mono', 'Nanum Gothic', monospace; }
+
+a { color: blue; }
+.imgfill img { max-width: 100%; max-height: 350px; }
+</style>
+</head>
+<body>
+<textarea id="source">
+
+class: center, middle
+
+# Table-driven programming in Rust
+# &nbsp;
+
+2015년 5월 16일  
+한국 Rust 사용자 모임 #2에서  
+강 성훈 ([@senokay](https://twitter.com/senokay))
+
+---
+
+class: center, middle
+
+# <del>Table-driven programming in Rust</del>
+# .ko-title[지난 2년간의 Rust 삽질기]
+
+2015년 5월 16일  
+한국 Rust 사용자 모임 #2에서  
+강 성훈 ([@senokay](https://twitter.com/senokay))
+
+---
+
+# https:&amp;#47;/github.com/lifthrasiir/...
+
+* `rust-chrono`
+* `rust-encoding`
+* `rust-strconv`
+* `rust-basehangul`
+* `cson-rust`
+* `rust-natord`
+* `angolmois-rust`
+* ???
+
+---
+
+# https:&amp;#47;/github.com/lifthrasiir/...
+
+* **`rust-chrono`**
+* **`rust-encoding`**
+* **`rust-strconv`**
+* `rust-basehangul`
+* `cson-rust`
+* `rust-natord`
+* `angolmois-rust`
+* ???
+
+---
+
+# Encoding
+
+문자 인코딩 라이브러리!
+
+--
+```rust
+use encoding::*;
+use encoding::all::WINDOWS_949;
+
+let s = WINDOWS_949.encode("안녕하세요!! 刁刁刁", EncoderTrap::Replace).unwrap();
+let d = WINDOWS_949.decode(&s, DecoderTrap::Strict).unwrap();
+assert_eq!(d, "안녕하세요!! ???");     // 모든 한자가 확장완성형에 있진 않아요
+```
+
+--
+주요 버전들
+
+* 0.1 (2013-06-30): 아마 한글 인코딩만 되었을 걸요?
+* 0.2 (2014-11-06): 주요 인코딩 모두 구현, 기본적인 인터페이스 지원
+	* 0.2.32 (2015-04-23)
+* 0.3? 1.0?: 점진적 인코딩/디코딩 지원
+
+---
+
+# Encoding
+
+.center.imgfill[![](encoding-deps.png)]
+
+ProTip™: 다운로드 수를 불리려면 crate를 쪼갠다
+
+---
+
+# Encoding
+
+다들 귀찮아하지만 누군가는 구현해야 하는 것
+
+[살아 있는 표준](http://encoding.spec.whatwg.org/)의 무상함을 알게 해 줌
+
+Servo가 필요로 합니다! 그래서 실제 피드백이 오는 게 재밌어요
+
+문자 인코딩은 자주 안 바뀌기 때문에 1.0 이후로 큰 변화는 없을 듯 싶습니다
+
+---
+
+# Chrono
+
+날짜/시간 라이브러리!
+
+--
+```rust
+use chrono::*;
+const WEEKDAYS: &'static [&'static str] = &["일","월","화","수","목","금","토"];
+
+let now = Local::now();
+println!("오늘은 {}일 {}요일입니다", now.day(),
+         WEEKDAYS[now.weekday().num_days_from_sunday() as usize]);
+```
+
+--
+주요 버전들
+
+* 0.1 (2014-03-28): 그 때는 시간대 지원 없는 `Date`만 있었어요
+	* 표준 라이브러리의 `Duration`이 0.1.1 이전의 Chrono에서 분리되었죠
+* 0.1.1 (2014-11-21): 날짜, 시각, 시간대 등의 기본 설계
+* 0.2 (2015-02-19): 시간대 재설계 + 포매팅/파싱 재구현
+	* 0.2.14 (2015-05-15)
+* 0.3?: 좀 더 나은 시간대 지원
+
+---
+
+# Chrono
+
+.center.imgfill[![](chrono-tabs.png)]
+
+시간대 구현이 좀 더 들어 오면 이상한 게 더 추가될 겁니다
+
+---
+
+# Chrono
+
+Rust스러운 API 설계에 대해서 많은 걸 알게 되었어요 (아직도 현재 진행형)
+
+API는 호불호가 갈리는 부분이 있을 수 밖에 없어서 많이 고민하고 있습니다  
+(Joda-Time과의 비교는 어쩔 수 없다고 생각합니다)
+
+시간대에 대한 적개심이 커집니다
+
+[tzdata](https://en.wikipedia.org/wiki/Tz_database) 처음 만든 Olson 아저씨에 대한 존경심도 커집니다
+
+0.3 어쩌냐;
+
+---
+
+# Rust-strconv
+
+더 빠르고 더 올바른 숫자-문자열 변환을 위하여!
+
+--
+
+.left.imgfill[![](issue7030.png)]
+
+다른 것도 있지만 최근에는 실수 → 문자열 변환(flt2dec)을 주로 작업했습니다
+
+---
+
+# Rust-strconv: flt2dec
+
+"빠르고" + "올바르게" 실수를 출력하기는 어려워요
+
+보통 "빠른" 걸 포기하고 "올바르게"만 출력합니다 (파이썬 등)
+
+[2010년에 Grisu라는 매우 빠른 알고리즘이 나왔습니다](http://www.serpentine.com/blog/2011/06/29/here-be-dragons-advances-in-problems-you-didnt-even-know-you-had/)
+
+근데 논문이 구현에 전혀 도움이 되지 않아서 피똥을 쌌어요
+
+[뻘짓 끝에 머지되었고 1.0에 들어갔습니다!](https://github.com/rust-lang/rust/pull/24612)
+
+Rust는 Grisu를 쓰는 세번째 메이저 언어가 되었습니다  
+(자바스크립트 V8/SpiderMonkey, Go 다음)
+
+---
+
+# Rust-strconv: flt2dec
+
+.center.imgfill[![](grisu-tabs.png)]
+
+테이블 1KB + 코드 30KB 정도
+
+모든 Rust 실행파일에 들어가야 해서 크기를 많이 줄였어요
+
+---
+
+# !
+
+Rust 재밌어요!
+
+아직 삽을 많이 파야 하지만...
+
+삽을 파면 많은 사람들이 쓰게 되는게 즐거워요
+
+앞으로는 삽이 아닌 일도 많이 해 보고 싶어요 (`angolmois-rust` ㅠㅠ)
+
+</textarea>
+<script src="remark-latest.min.js">
+</script>
+<script>
+var slideshow = remark.create();
+</script>
+</body>
+</html>
