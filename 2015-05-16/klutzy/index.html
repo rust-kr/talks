@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Rust History Class</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <link rel="stylesheet" type="text/css" href="http://fonts.googleapis.com/earlyaccess/hanna.css">
+    <style type="text/css">
+      @import url(https://fonts.googleapis.com/css?family=Droid+Serif:400,700,400italic);
+      @import url(https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic);
+      @import url(http://fonts.googleapis.com/earlyaccess/nanumgothic.css);
+
+      body {
+        font-family: 'Ubuntu Mono', 'Nanum Gothic', sans-serif;
+      }
+      h1, h2, h3 {
+        font-family: 'Hanna', serif;
+        font-weight: normal;
+        margin: 20px 0;
+      }
+      .remark-slide-content {
+        font-size: 22px;
+      }
+      a {
+        text-decoration: none;
+        color: brown;
+      }
+      img {
+        width: 90%;
+      }
+      pre {
+        background-color: #fff8ff;
+        border: 1px solid #fff0ff;
+        padding: 5px;
+      }
+      .remark-code, .remark-inline-code { font-family: 'Ubuntu Mono'; }
+    </style>
+  </head>
+  <body>
+    <textarea id="source">
+
+class: center, middle
+
+# Rust 언어 역사 탐방
+## Rust Language History
+
+### [klutzy](https://github.com/klutzy) @ [Rust-kr meetup 2015-05-16][meetup-2015-05-16]
+
+---
+
+class: center, middle
+
+## WARNING: OBSOLETE FEATURES
+
+없어진 기능에 낚이지 맙시다.
+
+하지만 없어진 기능이라고 무시하지도 맙시다.
+
+---
+
+# Pre-0.1
+
+-   Mozilla 직원 Graydon Hoare가 [2006년부터][rust-infoq] 개인적으로 시작
+-   Mozilla에서도 진지하게 관심을 가지기 시작하여 정식으로 팀이 꾸려지고
+-   더 안전한 C++를 만들어 세계를 구원할 첫 걸음을 내딛습니다.
+-   rust-lang/rust 커밋 히스토리:
+    -   2010-06-17: [Initial git commit.](https://github.com/rust-lang/rust/tree/c01efc669f09508b55eced32d3c88702578a7c3e)
+    -   2010-06-24: [Populate tree.](https://github.com/rust-lang/rust/tree/d6b7c96c3eb29b9244ece0c046d3f372ff432d04)
+    -   물론 그 이전에도 내부적으로 이것저것 뒤엎었겠죠.
+-   첫 Rust 컴파일러는 OCaml로 작성되었습니다.
+-   2011년 즈음에 Rust로 부트스트랩하는 환경이 갖춰집니다.
+
+---
+
+# Pre-0.1
+
+[src/test/bench/shootout/fibo.rs](https://github.com/rust-lang/rust/blob/d6b7c96c3eb29b9244ece0c046d3f372ff432d04/src/test/bench/shootout/fibo.rs)
+
+```
+fn fib(int n) -> int {
+  // Several of the posted 'benchmark' versions of this compute the
+  // wrong Fibonacci numbers, of course.
+  if (n == 0) {
+    ret 0;
+  } else {
+    if (n <= 2) {
+      ret 1;
+    } else {
+      ret fib(n-1) + fib(n-2);
+    }
+  }
+}
+```
+
+---
+
+# Pre-0.1
+
+[src/test/run-pass/box-unbox.rs](https://github.com/rust-lang/rust/blob/d6b7c96c3eb29b9244ece0c046d3f372ff432d04/src/test/run-pass/box-unbox.rs)
+
+```
+type box[T] = tup(@T);
+
+fn unbox[T](box[T] b) -> T { ret b._0; }
+
+fn main() {
+  let int foo = 17;
+  let box[int] bfoo = tup(foo);
+  log "see what's in our box";
+  check (unbox[int](bfoo) == foo);
+}
+```
+
+-   사실 저도 못 읽어요.
+-   [Archaea에서 문법 변화를 구경할 수 있어요!](http://brson.github.io/archaea/box-unbox.html)
+
+---
+
+# 0.1
+### [2012-01-20](https://mail.mozilla.org/pipermail/rust-dev/2012-January/001256.html)
+
+-   Most language features work, including:
+    -   Unique pointers, unique closures, move semantics
+    -   Interface-constrained generics
+    -   Static interface dispatch
+    -   Stack growth
+    -   Multithread task scheduling
+    -   Typestate predicates
+    -   Failure unwinding, destructors
+    -   Pattern matching and destructuring assignment
+    -   Lightweight block-lambda syntax
+    -   Preliminary macro-by-example
+
+---
+
+# 0.1: Memory boxes
+
+```
+let x: ~int = ~10;
+let y: @int = @10;
+```
+
+-   옛날엔 타입에 특수 기호가 많았어요.
+-   지금은 특별 취급하지 않고 평범한 이름을 가집니다.
+    -   `~T`: `Box<T>`로 바뀌었어요.
+    -   `@T`: 가비지 컬렉팅되는 타입. `Rc<T>`나 `Gc<T>`를 생각하면 됩니다.
+
+---
+
+# 0.1: Task
+
+```
+fn main() {
+    let t = task::spawn_joinable {|| child(10); };
+    task::join(t);
+}
+```
+
+-   segmented stack!
+-   co-op scheduling!
+    -   처음엔 컴파일러가 deschedule point를 몰래 넣었어요.
+    -   이후 libuv와 연동하도록 스케줄링 루틴을 Rust로 재작성했습니다.
+-   그러나,
+    -   실제 구현한 task의 성능이 기대한 만큼 좋지 않았고
+    -   C/C++ 등의 기존 코드와 연동하는 것이 힘들었습니다.
+-   현재는 task와 segmented stack 개념은 언어 차원에서는 폐기되고,
+    전통적인 thread 모델을 씁니다.
+-   task는 언어 지원 없이 구현해볼 수 있습니다. 필요하면 언젠가 다시 볼 수 있을지도?
+    -   [coroutine-rs]
+
+---
+
+# 0.1: Typestate
+
+```
+pure fn even(x: int) -> bool {
+    ret x & 1 == 0;
+}
+
+fn print_even(x: int) : even(x) {
+    print(x);
+}
+
+fn test() {
+    let y: int = 8;
+    // Cannot call print_even(y) here.
+    check even(y);
+    // Can call print_even(y) here, since even(y) now holds.
+    print_even(y);
+}
+```
+
+-   타입에 추가적인 조건절을 넣어, 코드가 조건을 올바르게 지키는지 컴파일 시간에 검사합니다.
+-   복잡성에 비해 거의 사용되지 않아,
+    [0.4에서 제거됩니다](http://pcwalton.github.io/blog/2012/12/26/typestate-is-dead/).
+
+---
+
+# 0.2
+### [2012-03-29](https://mail.mozilla.org/pipermail/rust-dev/2012-March/001511.html)
+
+-   Experimental new language features
+    -   Operator overloading
+    -   Region pointers
+    -   Classes
+-   Various language extensions
+    -   C-callback function types: 'crust fn ...'
+    -   Infinite-loop construct: 'loop { ... }'
+    -   Shorten 'mutable' to 'mut'
+    -   Required mutable-local qualifier: 'let mut ...'
+    -   Basic glob-exporting: 'export foo::*;'
+    -   Alt now exhaustive, 'alt check' for runtime-checked
+    -   Block-function form of 'for' loop, with 'break' and 'ret'.
+
+---
+
+# 0.2: `for` loop
+
+-   Rust 0.1의 `for`는 현재와 유사합니다.
+
+```
+for (a, b) in pairs { assert (a == b.name); }
+```
+
+-   0.2부터 클로저 기반으로 바뀝니다.
+    -   클로저는 루프를 계속할지 `bool` 값을 리턴합니다.
+    -   `for` 안쪽의 `break;`는 `return false;`로 바뀝니다.
+
+```
+for vec::each(pairs) {|(a, b)| if a == 3 { break; } }
+vec::each(pairs, {|(a, b)| if a == 3 { return false; } return true; });
+```
+
+-   근데 클로저에 lifetime 붙으면 머리 아프기 시작하죠.
+-   그래서 0.7부터 다시 external iterator로 바뀌었습니다.
+    -   [The future of iterators in Rust](https://mail.mozilla.org/pipermail/rust-dev/2013-June/004364.html)
+-   한 가지 남은 과제는 state machine을 쉽게 만드는 문제입니다.
+    -   [C#처럼 `yield`를 구현할 수 있을까요?](https://github.com/rust-lang/rfcs/issues/388)
+
+---
+
+# 0.3
+### [2012-07-12](https://mail.mozilla.org/pipermail/rust-dev/2012-July/002087.html)
+
+-   Semantic cleanup
+    -   Region pointers and borrow checking supersede alias analysis
+    -   Init-ness checking is now provided by a region-based liveness
+        pass instead of the typestate pass; same for last-use analysis
+-   Experimental new language features
+    -   shell execution
+    -   'const' type kind for types that can be used to implement
+        shared-memory concurrency patterns
+-   Type reflection
+
+---
+
+# 0.3: Borrowed pointers
+
+```
+type clam = { chowder: &int };
+
+impl clam for clam {
+    fn get_chowder() -> &self.int { ret self.chowder; }
+}
+```
+
+-   0.3에 와서야 우리가 알고 있는 `&T`가 추가되었습니다!
+-   명시적 lifetime 문법은 더 나중에 등장합니다.
+
+---
+
+# 0.3: [Pipe compiler](https://theincredibleholk.wordpress.com/2012/08/17/rust-protocols-tutorial/)
+
+src/test/run-pass/pipe-pingpong-proto.rs
+
+```
+proto! pingpong {
+    ping:send {
+        ping -> pong
+    }
+
+    pong:recv {
+        pong -> ping
+    }
+}
+```
+
+-   Syntax extension으로 MPI를 declarative하게 구현할 수 있었습니다.
+-   언어가 계속 변화하면서 방치되어 [사라졌습니다](https://github.com/rust-lang/rust/pull/8170).
+-   서드파티 crate로 다시 구현할 가치가 있을지도?
+
+---
+
+# 0.4
+### [2012-10-15](https://mail.mozilla.org/pipermail/rust-dev/2012-October/002489.html)
+
+-   Concurrency
+    -   More robust linked task failure
+-   Other
+    -   Preliminary JIT support
+    -   Preliminary work on precise GC
+
+---
+
+# 0.4: Lifetime
+
+```
+struct Point {x: float, y: float}
+fn get_x(p: &r/Point) -> &r/float { &p.x }
+
+pub trait ImmutableTuple<T, U> {
+    pure fn first_ref(&self) -> &self/T;
+    pure fn second_ref(&self) -> &self/U;
+}
+```
+
+-   드디어 우리가 알고 있는 lifetime이 등장합니다.
+-   이후 `&r/T` 문법은 `&'r T`로 바뀝니다.
+-   `&self/T`는 타입 자체의 lifetime을 가리키는 문법이었습니다.
+-   이후 타입 자체에 명시적인 lifetime을 쓰도록 바뀝니다. (`struct S<'a>`)
+
+---
+
+# 0.4: [Linked Task Failure](http://winningraceconditions.blogspot.kr/2012/09/rust-2-linked-task-failure.html)
+
+```
+do task::spawn_supervised {
+    do task::spawn_supervised {
+        sleep_forever();  // should get woken up by force
+    }
+    // Intermediate task immediately exits.
+}
+wait_for_a_while();
+fail;  // must kill grandchild even if child is gone
+```
+
+-   task가 실패할 경우 다른 부모/자식 태스크도 같이 종료하는 메커니즘입니다.
+-   task 개념이 폐기되면서 제거되었습니다.
+-   서드파티 task 구현체에서 다시 만들어 볼 가치가 충분히 있습니다.
+
+---
+
+# 0.5
+### [2012-12-21](https://mail.mozilla.org/pipermail/rust-dev/2012-December/002787.html)
+
+-   Libraries
+    -   New condition handling system in `core::condition`
+-   Misc
+    -   Added a preliminary REPL, `rusti`
+
+---
+
+# 0.5: Condition
+
+```
+condition! { divide_by_zero: int -> int; }
+
+fn divide(x: int, y: int) -> int {
+    if y == 0 { return divide_by_zero::raise(&x); }
+    ...
+}
+
+let value = divide_by_zero::cond.trap(|&_x| { 24 }).in { divide(10, 0) };
+// value == 24
+
+```
+
+-   일종의 exception handling 개념이었습니다.
+    -   함수 실행 중 오류가 발생했을 때, 함수는 condition을 `raise`합니다.
+    -   함수 바깥에서는 `cond.trap`으로 그 함수에게 대안책을 제공합니다.
+    -   함수는 대안책을 전달받아 계속 진행합니다.
+-   이후 표준 io 등에 적용하여 보았으나, 그리 편리하지 않아 이후 삭제되었습니다.
+-   현재는 `Result<V, E>`와 `try!` 디자인을 사용하고 있습니다.
+
+---
+
+# 0.6
+### [2013-04-03](https://mail.mozilla.org/pipermail/rust-dev/2013-April/003427.html)
+
+-   Syntax changes
+    -   The `move` keyword has been removed (see "Semantic changes")
+    -   The interior mutability qualifier on vectors, `[mut T]`, has been
+        removed. Use `&mut [T]`, etc.
+    -   `mut` is no longer valid in `~mut T`. Use inherited mutability
+    -   Struct fields may no longer be `mut`. Use inherited mutability,
+        `@mut T`, `core::mut` or `core::cell`
+    -   `const` renamed to `static` to correspond to lifetime name,
+        and make room for future `static mut` unsafe mutable globals.
+-   Semantic changes
+    -   Types with owned pointers or custom destructors move by default,
+        eliminating the `move` keyword
+
+슬슬 신기한 기능을 넣기보다는 기존 문법을 다듬기 시작합니다.
+
+---
+
+# 0.6
+
+src/test/bench/shootout-fibo.rs
+
+```
+extern mod std;
+fn fib(n: int) -> int {
+    if n < 2 { return 1; } else { return fib(n - 1) + fib(n - 2); }
+}
+fn main() {
+    let args = os::args();
+    let args = if os::getenv(~"RUST_BENCH").is_some() {
+        ~[~"", ~"40"]
+    } else if args.len() <= 1u {
+        ~[~"", ~"30"]
+    } else {
+        args
+    };
+    let n = int::from_str(args[1]).get();
+    io::println(fmt!("%d\n", fib(n)));
+}
+```
+
+이제 읽을 만 하죠?
+
+---
+
+# 0.7 ~ 0.12
+
+-   0.7: [2013-07-03](https://mail.mozilla.org/pipermail/rust-dev/2013-July/004667.html)
+-   0.8: [2013-09-26](https://mail.mozilla.org/pipermail/rust-dev/2013-September/005804.html)
+-   0.9: [2014-01-09](https://mail.mozilla.org/pipermail/rust-dev/2014-January/007753.html)
+-   0.10: [2014-04-03](https://mail.mozilla.org/pipermail/rust-dev/2014-April/009387.html)
+-   0.11: [2014-07-02](https://mail.mozilla.org/pipermail/rust-dev/2014-July/010655.html)
+-   0.12: [2014-10-09](https://mail.mozilla.org/pipermail/rust-dev/2014-October/011267.html)
+
+
+-   대체로 앞서 본 신기한 것들이 삭제되거나 다듬어지고,
+-   점차 우리가 알고 있는 언어가 됩니다.
+-   물론 아무것도 추가되지 않은 것은 아닙니다. 시간상 ↘ 생략
+
+---
+
+# 0.13
+
+---
+
+# 1.0 Alpha / Beta
+
+-   [1.0 alpha1](http://blog.rust-lang.org/2015/01/09/Rust-1.0-alpha.html): 2015-01-09
+-   [1.0 alpha2](http://blog.rust-lang.org/2015/02/20/Rust-1.0-alpha2.html): 2015-02-20
+-   [1.0 beta1](http://blog.rust-lang.org/2015/04/03/Rust-1.0-beta.html):   2015-04-03
+-   [1.0 beta2](http://users.rust-lang.org/t/psa-1-0-0-beta-2-is-out/1019): 2015-04-18
+-   1.0 beta3: 2015-04-26
+-   1.0 beta4: 2015-05-01
+-   ...
+
+베타는 그냥 1~2주에 한번씩 계속 업뎃될 거에요.
+
+---
+
+# 1.0
+### [2015-05-15](http://blog.rust-lang.org/2015/05/15/Rust-1.0.html)
+
+>   Today we are very proud to announce the 1.0 release of Rust, a new programming language aiming to make it easier to build reliable, efficient systems. Rust combines low-level control over performance with high-level convenience and safety guarantees.
+
+---
+
+# Post-1.0
+
+-   1.1 beta도 오늘 함께 나왔어요!
+-   master 브랜치는 이미 1.2입니다.
+-   시간상 1.0 이후에 논의/구현하기로 미뤄둔 것들이 있습니다.
+    -   `const fn`
+    -   `box` syntax
+    -   dynamic drop
+    -   virtual structs / inheritance
+    -   ...
+    -   feature gate된 문법들이 거의 다 여기에 속합니다.
+-   그 외에도 다양한 제안들이 나오고 있습니다.
+-   [Postponed RFCs](https://github.com/rust-lang/rfcs/issues?q=is%3Aopen+is%3Aissue+label%3Apostponed)
+
+---
+
+class: center, middle
+# [Rust-kr] community history
+
+---
+
+# 2013-04-27
+## [제 1회 한국 Rust 사용자 모임](http://rust-kr.org/pages/meetup-2013-04-27)
+
+---
+
+# 2013-04-28
+## &amp;lt;youknowone&amp;gt; 저 rust-kr.org 샀음
+
+-   파이썬으로 대문 만들고
+-   irc-웹 채팅 인터페이스 만들어서 서비스 시작
+
+아직 살아있어요! http://python.rust-kr.org
+
+-   Rust 참여 이력 통계 서비스 http://ruststat.youknowone.org/
+-   Servo 참여 이력 통계 서비스 http://servostat.youknowone.org/
+
+---
+
+# 2013-11-13
+## [rust-kr.org][rust-kr] in Rust
+
+왠지 웹사이트를 Rust로 만들면 폼날 것 같길래 시작
+
+-   이제는 추억이 된 [rust-http][]로 http 서버를 붙이고
+-   rustdoc에 들어있던 hoedown 기반 파서를 떼다 붙이고
+-   ICE도 몇개 만나고
+-   [rust-mustache](https://github.com/erickt/rust-mustache)를 붙이니 쨘!
+
+아마 세계 최초의 실용적인 Rust http 서버!
+
+앞으로 할 일:
+
+-   웹채팅 개선하기☆
+-   Markdown 파서 Rust로 만들기☆
+-   [HTTPS](https://github.com/klutzy/suruga) Rust로 만들기☆
+
+여러분 중 누군가가 할 겁니다.
+
+---
+
+# 2014-05-03
+## Rust 코딩모임 시작
+
+"집에서 집중도 잘 안 되는데 모여서 코딩하죠"
+
+-   2014년 12월부터 정기화되어 대략 한달에 한번 간격으로 모입니다.
+-   [PyJog](https://ko-kr.facebook.com/pyjog)와
+    [Naver D2](http://developer.naver.com/wiki/pages/techSupport)로부터
+    많은 도움과 지원을 받았습니다. 감사합니다!
+
+---
+
+# 2015-02-02
+## GitHub에 [Rust-kr 모임](https://github.com/rust-kr) 생성
+
+-   깃헙에 커뮤니티 소속 달아두는게 멋있어 보이길래...
+-   rust-kr.org 웹 서버에 관련된 repo들을 모아뒀습니다.
+-   아직 그거 말고는 별 용도는 없습니다.
+-   앞으로 할 일:
+    -   irc bot도 제대로 하나 넣어야 하고
+    -   로고도 만들고
+    -   사용자도 더 모으고!
+
+---
+
+# 2015-05-16
+## [제 2회 한국 Rust 사용자 모임][meetup-2015-05-16]
+
+-   오늘이네요.
+-   모두 찾아와 주셔서 감사합니다!
+
+[rust-infoq]: http://www.infoq.com/news/2012/08/Interview-Rust
+[rust-kr]: http://rust-kr.org
+[rust-http]: https://github.com/chris-morgan/rust-http
+[coroutine-rs]: https://github.com/rustcc/coroutine-rs
+[meetup-2015-05-16]: http://rust-kr.org/pages/meetup-2015-05-16
+
+    </textarea>
+    <script src="remark-latest.min.js">
+    </script>
+    <script>
+      var slideshow = remark.create();
+    </script>
+  </body>
+</html>
